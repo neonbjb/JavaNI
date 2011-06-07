@@ -56,7 +56,7 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
             viewGraph1.addAbsolutePoint(cur_spline, calc.getFigureX(x), calc.getFigureY(x));
         }
         for(int f = 0; f < calc.getFingersDetected(); f++){
-            viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f));
+            viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f), (int)ix, (int)iy);
             System.out.println("Finger " + f + " length: " + (int)calc.getFingerLength(f));
         }
 
