@@ -23,7 +23,6 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     
     public HandCalculator(){
         depth_sensitivity = 80.;
-        hand_orientation = 0.;
     }
     
     /**
@@ -41,6 +40,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         cur_hx = (int)x;
         cur_hy = (int)y;
         recalcTrueHandCenter();
+        recalcHandOrientation();
         recalcHandShape();
         recalcHandArea();
     }
@@ -52,13 +52,61 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         if(y >= dd_height) y = dd_height-1;
         return cur_dd[x + y * dd_width];
     }
-    
+
+
     /**
      * Does correction on the precomputed hand center to get a better estimate
      * for where it truly is.
      */
     private void recalcTrueHandCenter(){
-        //does nothing for now.
+        cur_hy += 50; //just a simple adjustment moves the center down a tad for better calcuations.
+    }
+    
+    /**
+     * Starting at the hand origin, this function continuously finds the mid-points of
+     * lines spanning horizontally across the hand. The assumption is that the hand is (in general)
+     * bilaterally symmetric (obviously the thumb causes this not to be true, hence the following limitation)
+     * This will only be valid on hand orientations between around -30deg to +30deg from a right angle. Future
+     * implementations will detect fingers extending horizontally and use vertical spanning lines
+     * to get the proper orientation in sideways situations.
+     */
+    final int NUMBER_OF_LINES = 5; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
+    final int SPAN_INCREMENT = 5; //amount to increment the vertical counter for each spanning line
+    public void recalcHandOrientation(){
+        int[] midpoints = new int[NUMBER_OF_LINES];
+        double home_depth = depthAt(cur_hx, cur_hy);
+        for(int x = 0; x < NUMBER_OF_LINES; x++){
+            //find furthest left
+            int yv = cur_hy - SPAN_INCREMENT * x;
+            int r, l;
+            for(l = 0; l < cur_hx && Math.abs(depthAt(cur_hx - l, yv) - home_depth) <= depth_sensitivity; l++); //badass loop that does calculations :)
+            for(r = 0; (r + cur_hx) < dd_width && Math.abs(depthAt(cur_hx + r, yv) - home_depth) <= depth_sensitivity; r++); //and another one!
+            midpoints[x] = (r + l) / 2;
+            System.out.println("Midpoint " + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
+        }
+
+        //do linear squares regression to get a line slope
+        double sx = 0., sy = 0., sxs = 0., sxy = 0.;
+        boolean vert = true;
+        for(int x = 0; x < NUMBER_OF_LINES; x++){
+            if(vert && x > 0){
+                if(midpoints[x] != midpoints[x-1]) vert = false; //if any of the x's are different, then its not vertical!
+            }
+            sx += midpoints[x];
+            sxs += (midpoints[x] * midpoints[x]);
+            sy += cur_hy - SPAN_INCREMENT * x;
+            sxy += midpoints[x] * (cur_hy - SPAN_INCREMENT * x);
+        }
+        if(vert || midpoints[0] == midpoints[NUMBER_OF_LINES-1]){
+            hand_orientation = 90;
+            System.out.println("Orientation is vertical (90deg)");
+        }else{
+            sx /= (double)NUMBER_OF_LINES; sy /= (double)NUMBER_OF_LINES;
+            sxs /= (double)NUMBER_OF_LINES; sxy /= (double)NUMBER_OF_LINES;
+            hand_orientation = Math.atan((sxy - sx * sy) / (sxs - sx * sx));
+            hand_orientation = hand_orientation * 180 / Math.PI; //tan puts out radians.
+            System.out.println("Orientation is " + hand_orientation + "deg");
+        }
     }
     
     /**
@@ -93,7 +141,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     }
     int _homex, _homey, _homedepth;
     void setHome(int x, int y){
-        _homex = x; _homey = y + 50;
+        _homex = x; _homey = y;
         _homedepth = depthAt(x, y);
 
     }
@@ -223,7 +271,11 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     public void setDepthSensitivity(double nds){
         depth_sensitivity = nds;
     }
-    
+
+    /**
+     * Returns orientation in degrees.
+     * @return
+     */
     public double getOrientation(){
         return hand_orientation;
     }
