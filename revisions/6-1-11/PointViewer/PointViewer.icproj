@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="windows-1255"?>
+<VisualStudioProject
+	ProjectType="Intel C++ Project"
+	Version="11.0"
+	Name="PointViewer"
+	ProjectGUID="{00000000-0000-0000-0000-000000000005}"
+	VCNestedProjectGUID="{00000000-0000-0000-0000-000000000004}"
+	VCNestedProjectFileName="PointViewer.vcproj">
+	<Configurations>
+		<Configuration
+			Name="Release|Win32">
+			<Tool
+				Name="CppCmplrTool"
+				GlobalOptimizations="true"
+				OptimizeForWindowsApplication="false"
+				FloatingPointSpeculation="0"
+				UseProcExt="0"
+				Parallelization="false"/>
+		</Configuration>
+	</Configurations>
+	<Files/>
+</VisualStudioProject>
