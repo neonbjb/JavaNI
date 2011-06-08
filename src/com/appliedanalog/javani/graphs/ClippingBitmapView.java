@@ -25,6 +25,7 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     int clipping_window = 1;
 
     boolean do_xpt = false;
+    int num_xpts;
     int[] xpt_x, xpt_y;
     int ch_x, ch_y; //denotes the hand "center", with relation to the extension points.
 
@@ -81,6 +82,10 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         ch_y = chy - clipy;
         do_xpt = true;
         hand_orientation_angle = ho;
+    }
+
+    public void setNumXpts(int nxpts){
+        num_xpts = nxpts;
     }
 
     public int addSpline(){
@@ -204,7 +209,7 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
 
         //finger points
         if(do_xpt){
-            for(int x = 0; x < xpt_x.length; x++){
+            for(int x = 0; x < num_xpts; x++){
                 g.setColor(Color.YELLOW);
                 g.fillRect(xpt_x[x] - 2, xpt_y[x] - 2, 5, 5);
                 g.setColor(Color.ORANGE);

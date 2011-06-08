@@ -13,7 +13,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
 
     double depth_sensitivity;
 
-    double hand_orientation; //in degrees, 0deg is straight up
+    double hand_orientation = 90; //in degrees, 0deg is straight up
     double[] hand_orientations = new double[5]; //for smoothing
     int rptr_ho = 0; //rotating pointer for that smoothing value.
 
@@ -44,6 +44,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
 
     //by their nature, handmoved() messages follow depthAt() messages, so this is when we should do the recalcs
     public void handMoved(double x, double y, double z) {
+        if(cur_dd == null) return; //havent gotten a depth map yet for some reason..
         cur_hx = (int)x;
         cur_hy = (int)y;
         recalcTrueHandCenter();
@@ -67,6 +68,14 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
      */
     private void recalcTrueHandCenter(){
         cur_hy += 70; //just a simple adjustment moves the center down a tad for better calcuations.
+        if(hand_orientation == 90) return;
+        //otherwise, use what we know about the orientation of the hand to adjust the x-value.
+        double o = hand_orientation;
+        if(o > 90.){
+            o -= 180.;
+        }
+        o = (o * Math.PI) / 180.;
+        cur_hx -= 70. / Math.tan(o);
     }
     
     /**
@@ -218,6 +227,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         //the next variables are for finger detection
         final int SLOPE_SMOOTHING = 20; //determines the number of distance differences that are compiled together to make the 'slope' variable.
         final double MIN_SLOPE = -.5; //this is how low the slope has to go before it's registered as a finger (conveniently, half of the array must register as negative for this to happen)
+        final double RESET_SLOPE = 0.; //this is how high the slope must go to reset a finger search
         double last_distance = 0; //calculated distance of immediate last point.
         double[] dist_diff = new double[SLOPE_SMOOTHING]; //used with the private 'slope' function to calculate the trend going on at any one moment
         int rp_dd = 0; //rotating insertion pointer for the distance difference vector
@@ -252,7 +262,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
                 double nd = distance(x, y);
                 dist_diff[rp_dd] = nd - last_distance; rp_dd = (rp_dd + 1) % SLOPE_SMOOTHING;
                 double nslope = slope(dist_diff);
-                if(nslope > MIN_SLOPE){ //then we can record highest distances
+                if(nslope > RESET_SLOPE || (highest_distance != -1. && nslope > MIN_SLOPE)){ //then we can record highest distances
                     if(highest_distance < nd){
                         highest_distance = nd;
                         highest_x = x;

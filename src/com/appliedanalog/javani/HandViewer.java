@@ -5,6 +5,7 @@
  */
 package com.appliedanalog.javani;
 
+import com.appliedanalog.javani.generators.TraceClient;
 import com.appliedanalog.javani.listeners.HandMovementListener;
 import com.appliedanalog.javani.dialogs.HandViewerController;
 
@@ -58,6 +59,7 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
         for(int f = 0; f < calc.getFingersDetected(); f++){
             viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f), calc.getHandX(), calc.getHandY(), calc.getOrientation());
         }
+        viewGraph1.setNumXpts(calc.getFingersDetected());
 
         //get average depth difference
         double avg_distance = depth_diff_history[0];
