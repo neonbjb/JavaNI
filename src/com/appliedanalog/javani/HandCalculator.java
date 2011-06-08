@@ -9,6 +9,8 @@ import com.appliedanalog.javani.listeners.HandMovementListener;
  * @author jbetker
  */
 public class HandCalculator implements DepthMapListener, HandMovementListener {
+    int frame_count;
+
     double depth_sensitivity;
 
     double hand_orientation; //in degrees, 0deg is straight up
@@ -26,6 +28,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     
     public HandCalculator(){
         depth_sensitivity = 80.;
+        frame_count = 0;
     }
     
     /**
@@ -36,6 +39,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         cur_dd = dd;
         dd_width = w;
         dd_height = h;
+        frame_count++;
     }
 
     //by their nature, handmoved() messages follow depthAt() messages, so this is when we should do the recalcs
@@ -62,7 +66,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
      * for where it truly is.
      */
     private void recalcTrueHandCenter(){
-        cur_hy += 50; //just a simple adjustment moves the center down a tad for better calcuations.
+        cur_hy += 70; //just a simple adjustment moves the center down a tad for better calcuations.
     }
     
     /**
@@ -73,21 +77,31 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
      * implementations will detect fingers extending horizontally and use vertical spanning lines
      * to get the proper orientation in sideways situations.
      */
-    final int NUMBER_OF_LINES = 15; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
+    final int NUMBER_OF_LINES = 10; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
     final int SPAN_INCREMENT = 2; //amount to increment the vertical counter for each spanning line
     final int ANGLE_BOUND = 30; //defines the bounding fan for valid angle values (it would just be invalid above or below this...)
+    final int MAX_WIDTH_DIFF = 30;
     public void recalcHandOrientation(){
         int[] midpoints = new int[NUMBER_OF_LINES];
         double home_depth = depthAt(cur_hx, cur_hy);
-        for(int x = 0; x < NUMBER_OF_LINES; x++){
-            //find furthest left
-            int yv = cur_hy - SPAN_INCREMENT * x;
-            int r, l;
+        int running_width = -1;
+        for(int x = 0, y = 0; x < NUMBER_OF_LINES; x++, y++){
+            int yv = cur_hy - SPAN_INCREMENT * y; //find current height
+            if(Math.abs(depthAt(cur_hx, yv) - home_depth) > depth_sensitivity){
+                //we're done, we've surpassed the hand..
+                return;
+            }
+            int r, l; //these will hold the left and right pointers
             for(l = 0; l < cur_hx && Math.abs(depthAt(cur_hx - l, yv) - home_depth) <= depth_sensitivity; l++); //badass loop that does calculations :)
             for(r = 0; (r + cur_hx) < dd_width && Math.abs(depthAt(cur_hx + r, yv) - home_depth) <= depth_sensitivity; r++); //and another one!
+            if(running_width == -1) running_width = r - l;
+            else if(Math.abs(running_width - (r - l)) > MAX_WIDTH_DIFF){ //the width is varying too drastically..
+                x = 0; //restart the calculation
+                continue;
+            }
             l = cur_hx - l; r = cur_hx + r; //convert these into real points on the depth map
             midpoints[x] = (r + l) / 2;
-            //System.out.println("Midpoint (" + r + ", " + l + ")--" + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
+            //debug("Midpoint (" + r + ", " + l + ")--" + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
         }
 
         //do linear squares regression to get a line slope
@@ -104,7 +118,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         }
         if(vert || midpoints[0] == midpoints[NUMBER_OF_LINES-1]){
             hand_orientation = 90;
-            System.out.println("Orientation is vertical (90deg)");
+            debug("Orientation is vertical (90deg)");
         }else{
             sx /= (double)NUMBER_OF_LINES; sy /= (double)NUMBER_OF_LINES;
             sxs /= (double)NUMBER_OF_LINES; sxy /= (double)NUMBER_OF_LINES;
@@ -136,7 +150,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
             case 1: return 1;
             case 2: return 0;
             case 3: return -1;
-        } System.out.println("CRITICAL: fell through switch in dirIncX.");
+        } debug("CRITICAL: fell through switch in dirIncX.");
         return 1;
     }
     int dirIncY(int dir){
@@ -145,7 +159,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
             case 1: return 0;
             case 2: return 1;
             case 3: return 0;
-        } System.out.println("CRITICAL: fell through switch in dirIncY.");
+        } debug("CRITICAL: fell through switch in dirIncY.");
         return 1;
     }
     int _homex, _homey, _homedepth;
@@ -246,7 +260,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
                     }  
                 }else if(highest_distance != -1.){ //then it hasnt been reset yet, record this as a finger
                     if(finger_count >= fingers_x.length){
-                        System.out.println("Ran out of recording slots for fingers..");
+                        debug("Ran out of recording slots for fingers..");
                     }else{
                         fingers_x[finger_count] = highest_x;
                         fingers_y[finger_count] = highest_y;
@@ -257,7 +271,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
                 last_distance = nd;
             }else{
                 //out of points, just give up.
-                //System.out.println("We ran out of recording points..");
+                //debug("We ran out of recording points..");
                 return;
             }
         }while(!amIHome(x, y));
@@ -358,4 +372,8 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     }
 
     public void newCalibration(double tx, double ty, double bx, double by, double z) { } //dont care
+
+    public void debug(String msg){
+        System.out.println("[" + frame_count + "] " + msg);
+    }
 }

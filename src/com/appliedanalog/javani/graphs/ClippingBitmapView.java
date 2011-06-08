@@ -213,7 +213,6 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         }
 
         //draw hand orientation vector
-        System.out.println("Attempting to draw angle: " + hand_orientation_angle);
         g.setColor(Color.RED.darker());
         g.fillRect(ch_x - 2, ch_y - 2, 5, 5);
         g.drawLine(ch_x, ch_y, 
