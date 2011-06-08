@@ -49,6 +49,7 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
     int depth_diff_history[] = new int[5];
     int ddh_rptr = 0; boolean clicked = false;
     public void handMoved(double ix, double iy, double iz) {
+        viewGraph1._bindCalculator(calc);
         if(cur_spline != -1){
             viewGraph1.removeSpline(cur_spline);
         }
@@ -57,7 +58,7 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
             viewGraph1.addAbsolutePoint(cur_spline, calc.getFigureX(x), calc.getFigureY(x));
         }
         for(int f = 0; f < calc.getFingersDetected(); f++){
-            viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f), calc.getHandX(), calc.getHandY(), calc.getOrientation());
+            viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f), calc.getHandX(), calc.getHandY(), calc.getSmoothedOrientation());
         }
         viewGraph1.setNumXpts(calc.getFingersDetected());
 
@@ -74,7 +75,6 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
             ddh_rptr = (ddh_rptr + 1) % depth_diff_history.length;
             avg_distance = depth_diff_history[0];
         }
-
 
         if(!clicked && avg_distance > DOWN_CLICK_SENSITIVITY){
             System.out.println("Mouse down");

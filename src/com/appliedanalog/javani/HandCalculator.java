@@ -90,8 +90,9 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     final int SPAN_INCREMENT = 2; //amount to increment the vertical counter for each spanning line
     final int ANGLE_BOUND = 30; //defines the bounding fan for valid angle values (it would just be invalid above or below this...)
     final int MAX_WIDTH_DIFF = 30;
+    public int[] midpoints = new int[NUMBER_OF_LINES];
+    public int _mp_y;
     public void recalcHandOrientation(){
-        int[] midpoints = new int[NUMBER_OF_LINES];
         double home_depth = depthAt(cur_hx, cur_hy);
         int running_width = -1;
         for(int x = 0, y = 0; x < NUMBER_OF_LINES; x++, y++){
@@ -111,7 +112,11 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
             l = cur_hx - l; r = cur_hx + r; //convert these into real points on the depth map
             midpoints[x] = (r + l) / 2;
             //debug("Midpoint (" + r + ", " + l + ")--" + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
+
+            //for debugging
+            _mp_y = y;
         }
+        _mp_y = cur_hy - SPAN_INCREMENT * (_mp_y - NUMBER_OF_LINES);
 
         //do linear squares regression to get a line slope
         double sx = 0., sy = 0., sxs = 0., sxy = 0.;
@@ -139,6 +144,8 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
                 hand_orientation = norient;
             }
         }
+        hand_orientations[rptr_ho] = hand_orientation;
+        rptr_ho = (rptr_ho + 1) % (hand_orientations.length);
     }
     
     /**
@@ -311,7 +318,15 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     public double getOrientation(){
         return hand_orientation;
     }
-    
+
+    public double getSmoothedOrientation(){
+        double avg = hand_orientations[0];
+        for(int x = 1; x < hand_orientations.length; x++){
+            avg += hand_orientations[x];
+        }
+        return avg / hand_orientations.length;
+    }
+
     public void setOrientation(double deg){
         hand_orientation = deg;
     }

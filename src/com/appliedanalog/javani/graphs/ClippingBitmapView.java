@@ -1,5 +1,6 @@
 package com.appliedanalog.javani.graphs;
 
+import com.appliedanalog.javani.HandCalculator;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Graphics;
@@ -34,7 +35,7 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     boolean display_dbg1 = false;
     String dbg1_text;
     
-    ArrayList<Polygon> splines = new ArrayList<Polygon>();
+    ArrayList<Polygon> splines = new ArrayList<Polygon>();   
     
     public ClippingBitmapView(){
         this(0, 0, 320, 240);
@@ -183,6 +184,14 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     }
 
     /**
+     * This violates MVC standards but is really necessary in this case.
+     */
+    HandCalculator _calc;
+    public void _bindCalculator(HandCalculator c){
+        _calc = c;
+    }
+
+    /**
      * Implemented from Canvas. 
      * @param g2 Graphics to draw onto.
      */
@@ -199,6 +208,18 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
             img.setRGB(x % resx, x / resx, img_data[x]);
         }
         g.drawImage(img, 0, 0, null);
+
+        //orientation derivation lines
+        if(_calc != null){
+            for(int x = 0; x < _calc.midpoints.length; x++){
+                int mp = _calc.midpoints[_calc.midpoints.length-x-1] - clipx;
+                int mph = _calc._mp_y + x * 2 - clipy;
+                g.setColor(Color.BLACK);
+                g.drawLine(0, mph, resx, mph);
+                g.setColor(Color.WHITE);
+                g.fillRect(mp, mph, 1, 1);
+            }
+        }
 
         //splines
         g.setColor(Color.YELLOW);
