@@ -10,8 +10,11 @@ import com.appliedanalog.javani.listeners.HandMovementListener;
  */
 public class HandCalculator implements DepthMapListener, HandMovementListener {
     double depth_sensitivity;
+
     double hand_orientation; //in degrees, 0deg is straight up
-    
+    double[] hand_orientations = new double[5]; //for smoothing
+    int rptr_ho = 0; //rotating pointer for that smoothing value.
+
     int[] cur_dd;
     int dd_width, dd_height;
     int cur_hx;
@@ -70,8 +73,9 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
      * implementations will detect fingers extending horizontally and use vertical spanning lines
      * to get the proper orientation in sideways situations.
      */
-    final int NUMBER_OF_LINES = 5; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
-    final int SPAN_INCREMENT = 5; //amount to increment the vertical counter for each spanning line
+    final int NUMBER_OF_LINES = 15; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
+    final int SPAN_INCREMENT = 2; //amount to increment the vertical counter for each spanning line
+    final int ANGLE_BOUND = 30; //defines the bounding fan for valid angle values (it would just be invalid above or below this...)
     public void recalcHandOrientation(){
         int[] midpoints = new int[NUMBER_OF_LINES];
         double home_depth = depthAt(cur_hx, cur_hy);
@@ -81,8 +85,9 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
             int r, l;
             for(l = 0; l < cur_hx && Math.abs(depthAt(cur_hx - l, yv) - home_depth) <= depth_sensitivity; l++); //badass loop that does calculations :)
             for(r = 0; (r + cur_hx) < dd_width && Math.abs(depthAt(cur_hx + r, yv) - home_depth) <= depth_sensitivity; r++); //and another one!
+            l = cur_hx - l; r = cur_hx + r; //convert these into real points on the depth map
             midpoints[x] = (r + l) / 2;
-            System.out.println("Midpoint " + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
+            //System.out.println("Midpoint (" + r + ", " + l + ")--" + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
         }
 
         //do linear squares regression to get a line slope
@@ -103,9 +108,13 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         }else{
             sx /= (double)NUMBER_OF_LINES; sy /= (double)NUMBER_OF_LINES;
             sxs /= (double)NUMBER_OF_LINES; sxy /= (double)NUMBER_OF_LINES;
-            hand_orientation = Math.atan((sxy - sx * sy) / (sxs - sx * sx));
-            hand_orientation = hand_orientation * 180 / Math.PI; //tan puts out radians.
-            System.out.println("Orientation is " + hand_orientation + "deg");
+            double slope = - (sxy - sx * sy) / (sxs - sx * sx); //negate it because the way we are doing this calculates a backwards angle, we want it wrt the positive x axis
+            double norient = Math.atan(slope);
+            norient = norient * 180 / Math.PI; //tan puts out radians.
+            if(norient < 0) norient += 180;
+            if(norient > 90 - ANGLE_BOUND && norient < 90 + ANGLE_BOUND){
+                hand_orientation = norient;
+            }
         }
     }
     
@@ -193,7 +202,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         int dir = 1; //always start in this direction
         int x = _homex; int y = _homey;
         //the next variables are for finger detection
-        final int SLOPE_SMOOTHING = 10; //determines the number of distance differences that are compiled together to make the 'slope' variable.
+        final int SLOPE_SMOOTHING = 20; //determines the number of distance differences that are compiled together to make the 'slope' variable.
         final double MIN_SLOPE = -.5; //this is how low the slope has to go before it's registered as a finger (conveniently, half of the array must register as negative for this to happen)
         double last_distance = 0; //calculated distance of immediate last point.
         double[] dist_diff = new double[SLOPE_SMOOTHING]; //used with the private 'slope' function to calculate the trend going on at any one moment
@@ -252,7 +261,6 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
                 return;
             }
         }while(!amIHome(x, y));
-        System.out.println("\n\n\n\n\n\n");
     }
     
     /**
@@ -282,7 +290,15 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     
     public void setOrientation(double deg){
         hand_orientation = deg;
-    }    
+    }
+
+    public int getHandX(){
+        return cur_hx;
+    }
+
+    public int getHandY(){
+        return cur_hy;
+    }
     
     public double getHandArea(){
         return hand_area;

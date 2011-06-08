@@ -28,6 +28,8 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     int[] xpt_x, xpt_y;
     int ch_x, ch_y; //denotes the hand "center", with relation to the extension points.
 
+    double hand_orientation_angle = 0.;
+
     boolean display_dbg1 = false;
     String dbg1_text;
     
@@ -63,20 +65,22 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         img_data = new int[rx * ry];
     }
 
-    public void setXpt(int i, int x, int y, int chx, int chy){
+    public void setXpt(int i, int x, int y, int chx, int chy, double ho){
         xpt_x[i] = x;
         xpt_y[i] = y;
         ch_x = chx;
         ch_y = chy;
         do_xpt = true;
+        hand_orientation_angle = ho;
     }
 
-    public void setXptAbsolute(int i, int x, int y, int chx, int chy){
+    public void setXptAbsolute(int i, int x, int y, int chx, int chy, double ho){
         xpt_x[i] = x - clipx;
         xpt_y[i] = y - clipy;
-        ch_x = chx;
-        ch_y = chy;
+        ch_x = chx - clipx;
+        ch_y = chy - clipy;
         do_xpt = true;
+        hand_orientation_angle = ho;
     }
 
     public int addSpline(){
@@ -202,11 +206,19 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         if(do_xpt){
             for(int x = 0; x < xpt_x.length; x++){
                 g.setColor(Color.YELLOW);
-                g.drawRect(xpt_x[x] - 2, xpt_y[x] - 2, 5, 5);
+                g.fillRect(xpt_x[x] - 2, xpt_y[x] - 2, 5, 5);
                 g.setColor(Color.ORANGE);
                 g.drawLine(ch_x, ch_y, xpt_x[x], xpt_y[x]);
             }
         }
+
+        //draw hand orientation vector
+        System.out.println("Attempting to draw angle: " + hand_orientation_angle);
+        g.setColor(Color.RED.darker());
+        g.fillRect(ch_x - 2, ch_y - 2, 5, 5);
+        g.drawLine(ch_x, ch_y, 
+                ch_x + (int)(200. * Math.cos(hand_orientation_angle * Math.PI / 180.)),
+                ch_y - (int)(200. * Math.sin(hand_orientation_angle * Math.PI / 180.)));
 
         if(display_dbg1){
             g.drawString(dbg1_text, 20, 20);
