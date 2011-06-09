@@ -212,8 +212,8 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         //orientation derivation lines
         if(_calc != null){
             for(int x = 0; x < _calc.midpoints.length; x++){
-                int mp = _calc.midpoints[_calc.midpoints.length-x-1] - clipx;
-                int mph = _calc._mp_y + x * 2 - clipy;
+                int mp = _calc.midpoints[x] - clipx;
+                int mph = _calc._mp_y - x * 2 - clipy;
                 g.setColor(Color.BLACK);
                 g.drawLine(0, mph, resx, mph);
                 g.setColor(Color.WHITE);

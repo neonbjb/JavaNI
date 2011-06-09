@@ -19,9 +19,9 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
     public Tracer() {
         try{
             //init variables
-            //Socket sock = new Socket("localhost", 18353);
-            //client = new TraceClient(sock.getInputStream());
-            client = new TraceClientFromLog("trace_log.bin");
+            Socket sock = new Socket("localhost", 18353);
+            client = new TraceClient(sock.getInputStream());
+            //client = new TraceClientFromLog("trace_log.bin");
             client.addHandListener(this);
             client.start();
         }catch(Exception e){
