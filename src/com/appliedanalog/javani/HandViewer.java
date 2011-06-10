@@ -5,9 +5,12 @@
  */
 package com.appliedanalog.javani;
 
+import com.appliedanalog.javani.processors.HandCalculator;
 import com.appliedanalog.javani.generators.TraceClient;
 import com.appliedanalog.javani.listeners.HandMovementListener;
 import com.appliedanalog.javani.dialogs.HandViewerController;
+import java.awt.Color;
+import java.awt.Point;
 
 /**
  *
@@ -18,6 +21,8 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
     HandCalculator calc;
     MouseFollower mouse;
     TraceClient client;
+    int fpindex; //where to start adding figure points to the viewer
+    int fingersindex; //where to start adding finger points to the viewer
     
     /** Creates new form HandTracer */
     public HandViewer(TraceClient cli) {
@@ -38,6 +43,9 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
 
         cli.addDepthListener(calc);
         cli.addDepthListener(viewGraph1);
+
+        fpindex = viewGraph1.initPoints(calc.getMaxFigurePoints());
+        fingersindex = viewGraph1.initPoints(5);
     }
 
     //we dont actually do anything with the data, this is used as a callback to let us know
@@ -49,18 +57,14 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
     int depth_diff_history[] = new int[5];
     int ddh_rptr = 0; boolean clicked = false;
     public void handMoved(double ix, double iy, double iz) {
-        viewGraph1._bindCalculator(calc);
-        if(cur_spline != -1){
-            viewGraph1.removeSpline(cur_spline);
-        }
-        cur_spline = viewGraph1.addSpline();
+        viewGraph1.clearPoints(fpindex, fpindex + calc.getMaxFigurePoints()-1);
+        viewGraph1.clearPoints(fingersindex, fingersindex + 4);
         for(int x = 0; x < calc.figurePointCount(); x++){
-            viewGraph1.addAbsolutePoint(cur_spline, calc.getFigureX(x), calc.getFigureY(x));
+            viewGraph1.setPoint(fpindex + x, calc.getFigure(x), Color.YELLOW, false);
         }
         for(int f = 0; f < calc.getFingersDetected(); f++){
-            viewGraph1.setXptAbsolute(f, calc.getFingerX(f), calc.getFingerY(f), calc.getHandX(), calc.getHandY(), calc.getSmoothedOrientation());
+            viewGraph1.setPoint(fingersindex + f, new Point(calc.getFingerX(f), calc.getFingerY(f)), Color.ORANGE, true);
         }
-        viewGraph1.setNumXpts(calc.getFingersDetected());
 
         //get average depth difference
         double avg_distance = depth_diff_history[0];

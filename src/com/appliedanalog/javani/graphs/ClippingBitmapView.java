@@ -1,6 +1,6 @@
 package com.appliedanalog.javani.graphs;
 
-import com.appliedanalog.javani.HandCalculator;
+import com.appliedanalog.javani.processors.HandCalculator;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Graphics;
@@ -10,6 +10,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Iterator;
 import com.appliedanalog.javani.listeners.DepthMapListener;
+import java.awt.Point;
 
 /**
  *
@@ -25,18 +26,22 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     int clipping_depth = 0;
     int clipping_window = 1;
 
-    boolean do_xpt = false;
-    int num_xpts;
-    int[] xpt_x, xpt_y;
-    int ch_x, ch_y; //denotes the hand "center", with relation to the extension points.
+    Color[] line_colors = new Color[100];
+    Point[][] lines = new Point[100][2];
+    int num_lines = 0;
 
-    double hand_orientation_angle = 0.;
+    boolean[] big_point = new boolean[50000];
+    Color[] point_colors = new Color[50000];
+    Point[] points = new Point[50000];
+    int num_points = 0;
+    
+    String[] strings = new String[100];
+    Point[] strlocs = new Point[100];
+    Color[] strcolors = new Color[100];
+    int num_strings = 0;
 
-    boolean display_dbg1 = false;
-    String dbg1_text;
-    
-    ArrayList<Polygon> splines = new ArrayList<Polygon>();   
-    
+    BufferedImage bufimg; //for drawing
+
     public ClippingBitmapView(){
         this(0, 0, 320, 240);
     }
@@ -46,9 +51,8 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         this.resy = resy;
         this.clipx = clipx;
         this.clipy = clipy;
-        xpt_x = new int[5];
-        xpt_y = new int[5];
         img_data = new int[resx * resy];
+        bufimg = new BufferedImage(resx, resy, BufferedImage.TYPE_3BYTE_BGR);
     }
     
     public void enableDepthClipping(int cd, int cw){
@@ -67,56 +71,6 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         img_data = new int[rx * ry];
     }
 
-    public void setXpt(int i, int x, int y, int chx, int chy, double ho){
-        xpt_x[i] = x;
-        xpt_y[i] = y;
-        ch_x = chx;
-        ch_y = chy;
-        do_xpt = true;
-        hand_orientation_angle = ho;
-    }
-
-    public void setXptAbsolute(int i, int x, int y, int chx, int chy, double ho){
-        xpt_x[i] = x - clipx;
-        xpt_y[i] = y - clipy;
-        ch_x = chx - clipx;
-        ch_y = chy - clipy;
-        do_xpt = true;
-        hand_orientation_angle = ho;
-    }
-
-    public void setNumXpts(int nxpts){
-        num_xpts = nxpts;
-    }
-
-    public int addSpline(){
-        splines.add(new Polygon());
-        return splines.size()-1;
-    }
-    
-    public void addPoint(int splineid, int x, int y){
-        splines.get(splineid).addPoint(x, y);
-    }
-
-    /**
-     * This function adds a spline point from the coordinate space of the whole bitmap,
-     * rather than the clipped window
-     * @param splineid
-     * @param x
-     * @param y
-     */
-    public void addAbsolutePoint(int splineid, int x, int y){
-        splines.get(splineid).addPoint(x - clipx, y - clipy);
-    }
-    
-    public Polygon getSpline(int splineid){
-        return splines.get(splineid);
-    }
-    
-    public void removeSpline(int splineid){
-        splines.remove(splineid);
-    }
-    
     /**
      * Does NOT move the clipping window in the graph that is currently displayed,
      * will move it the next time new image data is fed in.
@@ -133,15 +87,6 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         clipy = y - (resy / 2);
         if(clipx < 0) clipx = 0;
         if(clipy < 0) clipy = 0;
-    }
-
-    public void debugText(String str){
-        display_dbg1 = true;
-        dbg1_text = str;
-    }
-
-    public void disableDebug(){
-        display_dbg1 = false;
     }
     
     /**
@@ -184,14 +129,6 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     }
 
     /**
-     * This violates MVC standards but is really necessary in this case.
-     */
-    HandCalculator _calc;
-    public void _bindCalculator(HandCalculator c){
-        _calc = c;
-    }
-
-    /**
      * Implemented from Canvas. 
      * @param g2 Graphics to draw onto.
      */
@@ -203,52 +140,181 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         Graphics g = i.createGraphics();
         
         //we should be stashing the buffered image if possible
-        BufferedImage img = new BufferedImage(resx, resy, BufferedImage.TYPE_3BYTE_BGR);
         for(int x = 0; x < img_data.length; x++){
-            img.setRGB(x % resx, x / resx, img_data[x]);
+            bufimg.setRGB(x % resx, x / resx, img_data[x]);
         }
-        g.drawImage(img, 0, 0, null);
+        g.drawImage(bufimg, 0, 0, null);
 
-        //orientation derivation lines
-        if(_calc != null){
-            for(int x = 0; x < _calc.midpoints.length; x++){
-                int mp = _calc.midpoints[x] - clipx;
-                int mph = _calc._mp_y - x * 2 - clipy;
-                g.setColor(Color.BLACK);
-                g.drawLine(0, mph, resx, mph);
-                g.setColor(Color.WHITE);
-                g.fillRect(mp, mph, 1, 1);
-            }
+        for(int x = 0; x < num_points; x++){
+            int rectsz = (big_point[x] ? 5 : 1);
+            int px = (big_point[x] ? points[x].x - 2 : points[x].x) - clipx;
+            int py = (big_point[x] ? points[x].y - 2 : points[x].y) - clipy;
+            g.setColor(point_colors[x]);
+            g.fillRect(px, py, rectsz, rectsz);
         }
 
-        //splines
-        g.setColor(Color.YELLOW);
-        Iterator<Polygon> iter = splines.iterator();
-        while(iter.hasNext()){
-            g.drawPolygon(iter.next());
+        for(int x = 0; x < num_lines; x++){
+            g.setColor(line_colors[x]);
+            g.drawLine(lines[x][0].x-clipx, lines[x][0].y-clipy, lines[x][1].x-clipx, lines[x][1].y-clipy);
         }
 
-        //finger points
-        if(do_xpt){
-            for(int x = 0; x < num_xpts; x++){
-                g.setColor(Color.YELLOW);
-                g.fillRect(xpt_x[x] - 2, xpt_y[x] - 2, 5, 5);
-                g.setColor(Color.ORANGE);
-                g.drawLine(ch_x, ch_y, xpt_x[x], xpt_y[x]);
-            }
+        //strings are unique because they are not relative
+        for(int x = 0; x < num_strings; x++){
+            g.setColor(strcolors[x]);
+            g.drawString(strings[x], strlocs[x].x, strlocs[x].y);
         }
+        
 
-        //draw hand orientation vector
+        /*//draw hand orientation vector
         g.setColor(Color.RED.darker());
         g.fillRect(ch_x - 2, ch_y - 2, 5, 5);
         g.drawLine(ch_x, ch_y, 
                 ch_x + (int)(200. * Math.cos(hand_orientation_angle * Math.PI / 180.)),
                 ch_y - (int)(200. * Math.sin(hand_orientation_angle * Math.PI / 180.)));
-
         if(display_dbg1){
             g.drawString(dbg1_text, 20, 20);
-        }
+        }*/
         
         g2.drawImage(i, 0, 0, this);
+    }
+
+    public int addString(String s, Point p1){
+        return addString(s, p1, Color.BLACK);
+    }
+
+    public int addString(String s, Point p1, Color c){
+        if(num_strings >= strcolors.length){
+            System.out.println("ClippingBitmapView: Ran out of lines!");
+            return -1;
+        }
+        strlocs[num_strings] = p1;
+        strcolors[num_strings] = c;
+        strings[num_strings] = s;
+        num_strings++;
+        return num_strings-1;
+    }
+
+    public void setString(int ind, String s, Point p1, Color c){
+        strlocs[ind] = p1;
+        strcolors[ind] = c;
+        strings[ind] = s;
+    }
+
+    public void removeStrings(int ln){
+        Point tp; Color tc; String s;
+        for(int x = ln; x < num_strings - 1; x++){
+            tp = strlocs[x];
+            strlocs[x] = strlocs[x+1];
+            strlocs[x+1] = tp;
+            tc = strcolors[x];
+            strcolors[x] = strcolors[x+1];
+            strcolors[x+1] = tc;
+            s = strings[x];
+            strings[x] = strings[x+1];
+            strings[x+1] = s;
+        }
+        num_strings--;
+    }
+
+    public int addLine(Point p1, Point p2){
+        return addLine(p1, p2, Color.BLACK);
+    }
+
+    public int addLine(Point p1, Point p2, Color c){
+        if(num_lines >= line_colors.length){
+            System.out.println("ClippingBitmapView: Ran out of lines!");
+            return -1;
+        }
+        lines[num_lines][0] = p1;
+        lines[num_lines][1] = p2;
+        line_colors[num_lines] = c;
+        num_lines++;
+        return num_lines-1;
+    }
+
+    public void setLine(int ind, Point p1, Point p2, Color c){
+        lines[ind][0] = p1;
+        lines[ind][1] = p2;
+        line_colors[ind] = c;
+    }
+
+    public int initLines(int qty){
+        for(int x = num_lines; x < qty + num_lines; x++){
+            lines[x][0] = new Point(0, 0);
+            lines[x][1] = new Point(0, 0);
+            line_colors[x] = Color.BLACK;
+        }
+        num_lines += qty;
+        return num_lines-qty;
+    }
+
+    public void removeLine(int ln){
+        Point[] tp; Color tc;
+        for(int x = ln; x < num_lines - 1; x++){
+            tp = lines[x];
+            lines[x] = lines[x+1];
+            lines[x+1] = tp;
+            tc = line_colors[x];
+            line_colors[x] = line_colors[x+1];
+            line_colors[x+1] = tc;
+        }
+        num_lines--;
+    }
+
+
+    public int addPoint(Point p1){
+        return addPoint(p1, Color.BLACK, false);
+    }
+
+    public int addPoint(Point p1, Color c, boolean big){
+        if(num_points >= point_colors.length){
+            System.out.println("ClippingBitmapView: Ran out of lines!");
+            return -1;
+        }
+        points[num_points] = p1;
+        point_colors[num_points] = c;
+        big_point[num_points] = big;
+        num_points++;
+        return num_points-1;
+    }
+
+    public void setPoint(int ind, Point p1, Color c, boolean big){
+        points[ind] = p1;
+        point_colors[ind] = c;
+        big_point[ind] = big;
+    }
+
+    public int initPoints(int qty){
+        for(int x = num_points; x < qty + num_points; x++){
+            points[x] = new Point(0, 0);
+            point_colors[x] = Color.BLACK;
+            big_point[x] = false;
+        }
+        num_points += qty;
+        return num_points-qty;
+    }
+
+    public void clearPoints(int ps, int pe){
+        for(int x = ps; x < pe; x++){
+            points[x] = new Point(0, 0);
+            point_colors[x] = Color.BLACK;
+            big_point[x] = false;
+        }
+    }
+
+    public void removePoint(int ln){
+        Point tp; Color tc; boolean tb;
+        for(int x = ln; x < num_points - 1; x++){
+            tp = points[x];
+            points[x] = points[x+1];
+            points[x+1] = tp;
+            tc = point_colors[x];
+            point_colors[x] = point_colors[x+1];
+            point_colors[x+1] = tc;
+            tb = big_point[x];
+            big_point[x] = big_point[x+1];
+            big_point[x+1] = tb;
+        }
+        num_points--;
     }
 }
