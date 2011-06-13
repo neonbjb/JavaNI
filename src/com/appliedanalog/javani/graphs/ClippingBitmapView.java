@@ -1,14 +1,10 @@
 package com.appliedanalog.javani.graphs;
 
-import com.appliedanalog.javani.processors.HandCalculator;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.Polygon;
 import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Iterator;
 import com.appliedanalog.javani.listeners.DepthMapListener;
 import java.awt.Point;
 

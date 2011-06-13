@@ -1,17 +1,22 @@
 package com.appliedanalog.javani;
 
+import com.appliedanalog.javani.dialogs.MeasurementViewer;
 import com.appliedanalog.javani.generators.TraceClient;
 import com.appliedanalog.javani.generators.TraceClientFromLog;
+import com.appliedanalog.javani.listeners.DepthMapListener;
 import com.appliedanalog.javani.listeners.HandMovementListener;
 import com.appliedanalog.javani.listeners.MessageTransmitter;
-import java.net.Socket;
+import com.appliedanalog.javani.processors.HandMeasurement;
+import java.util.concurrent.Semaphore;
 
 /**
  *
  * @author James
  */
-public class Tracer extends javax.swing.JFrame implements HandMovementListener, MessageTransmitter{
+public class Tracer extends javax.swing.JFrame implements HandMovementListener, DepthMapListener, MessageTransmitter{
     double hx, hy, hz;
+    int[] depth_map;
+    int dm_width, dm_height;
     TraceClient client;
     HandViewer viewer;
 
@@ -23,6 +28,7 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
             //client = new TraceClient(sock.getInputStream());
             client = new TraceClientFromLog("trace_log.bin");
             client.addHandListener(this);
+            client.addDepthListener(this);
             client.start();
         }catch(Exception e){
             e.printStackTrace();
@@ -43,6 +49,16 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
         hz = z;
     }
 
+    public void newDepthMap(int[] dm, int width, int height) {
+        depth_map = dm;
+        dm_width = width;
+        dm_height = height;
+        if(_do_measurement){
+            doMeasurement();
+            _do_measurement = false;
+        }
+    }
+
     public void newCalibration(double tx, double ty, double bx, double by, double z) { }
 
     /** This method is called from within the constructor to
@@ -59,7 +75,7 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        bCalibrate.setText("Calibrate");
+        bCalibrate.setText("Measure Hand");
         bCalibrate.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 bCalibrateActionPerformed(evt);
@@ -86,9 +102,29 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    boolean _do_measurement = false;
     private void bCalibrateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_bCalibrateActionPerformed
-        client.calibrate(this);
+        //client.calibrate(this); //this will calibrate the client to constrain detected hand motion within a box
+        lText.setText("Hand measurement slated to take place in 3 seconds, hold your hand upright with fingers and thumb spread.");
+        (new Thread(){
+            public void run(){
+                try{ Thread.sleep(3000); }catch(Exception e){}
+                _do_measurement = true;
+            }
+        }).start();
     }//GEN-LAST:event_bCalibrateActionPerformed
+
+    private void doMeasurement(){
+        HandMeasurement measurement = new HandMeasurement();
+        measurement.measure(depth_map, dm_width, dm_height, (int)hx, (int)hy, (int)hz);
+        if(!measurement.handMeasured()){
+            lText.setText("Error measuring hand, see console.");
+        }else{
+            lText.setText("Hand successfully measured.");
+            MeasurementViewer mviewer = new MeasurementViewer(this, depth_map, dm_width, dm_height, measurement);
+            mviewer.setVisible(true);
+        }
+    }
 
     /**
     * @param args the command line arguments

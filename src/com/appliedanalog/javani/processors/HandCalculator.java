@@ -253,6 +253,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     int cx, cy;
     Point[] pathing = new Point[10000]; //should never be larger than this
     int num_points = 0;
+    boolean got_hand_shape = false;
     void recalcHandShape(){
         setHome(cur_hx, cur_hy);
         num_points = 0;
@@ -318,9 +319,11 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
             }else{
                 //out of points, just give up.
                 //debug("We ran out of recording points..");
+                got_hand_shape = false;
                 return;
             }
         }while(!amIHome(x, y));
+        got_hand_shape = true;
     }
     
     /**
@@ -384,6 +387,10 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         return fingers_y[f];
     }
 
+    public Point getFinger(int f){
+        return new Point(fingers_x[f], fingers_y[f]);
+    }
+
     public int getFingerIndex(int f){
         return finger_indices[f];
     }
@@ -432,6 +439,10 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     
     public int figurePointCount(){
         return num_points;
+    }
+
+    public boolean isFigureValid(){
+        return got_hand_shape;
     }
 
     public int getMaxFigurePoints(){
