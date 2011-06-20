@@ -25,7 +25,7 @@ public class TraceClient implements Runnable{
     InputStream src;
 
     //logging
-    final boolean DO_LOGGING = false;
+    final boolean DO_LOGGING = true;
     boolean recording_started;
     DataOutputStream log_os;
 
