@@ -26,7 +26,7 @@ public class TraceClient implements Runnable{
     int frame_counter = 0;
 
     //logging
-    final boolean DO_LOGGING = false;
+    final boolean DO_LOGGING = true;
     boolean recording_started;
     DataOutputStream log_os;
     

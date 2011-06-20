@@ -6,6 +6,7 @@
 
 package com.appliedanalog.javani.dialogs;
 
+import com.appliedanalog.javani.graphs.ClippingBitmapView;
 import com.appliedanalog.javani.processors.HandMeasurement;
 import java.awt.Color;
 import java.awt.Point;
@@ -15,23 +16,26 @@ import java.awt.Point;
  * @author jbetker
  */
 public class MeasurementViewer extends javax.swing.JDialog {
-    HandMeasurement measurement;
+    HandMeasurement measurement = null;
     int[] depth_map;
     int dm_width, dm_height;
 
     /** Creates new form MeasurementViewer */
-    public MeasurementViewer(java.awt.Frame parent, int[] depthmap, int dmw, int dmh, HandMeasurement m) {
+    public MeasurementViewer(java.awt.Frame parent, int[] depthmap, int dmw, int dmh) {
         super(parent, false);
         initComponents();
-        measurement = m;
         depth_map = depthmap;
         dm_width = dmw;
         dm_height = dmh;
 
+        view.newDepthMap(depthmap, dmw, dmh);
+        view.repaint();
+    }
+
+    public void attachMeasurement(HandMeasurement m){
+        measurement = m;
         view.enableDepthClipping(m.getMeasurementDepth(), 50);
         view.centerClippingWindowOn(m.getMeasurementCenterOfHand().x, m.getMeasurementCenterOfHand().y);
-        view.newDepthMap(depthmap, dmw, dmh);
-
         //draw measurement information.
         view.addPoint(m.getMeasurementCenterOfHand(), Color.CYAN, true);
         view.addPoint(m.getWristCenter(), Color.YELLOW, true);
@@ -64,6 +68,10 @@ public class MeasurementViewer extends javax.swing.JDialog {
         view.addLine(m.getMeasurementCenterOfHand(), m.getRingAttachment(), Color.YELLOW);
         view.addLine(m.getMeasurementCenterOfHand(), m.getPinkyAttachment(), Color.YELLOW);
         view.repaint();
+    }
+
+    public ClippingBitmapView getView(){
+        return view;
     }
 
     /** This method is called from within the constructor to

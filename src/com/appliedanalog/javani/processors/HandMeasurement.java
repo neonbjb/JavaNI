@@ -1,5 +1,7 @@
 package com.appliedanalog.javani.processors;
 
+import com.appliedanalog.javani.graphs.ClippingBitmapView;
+import java.awt.Color;
 import java.awt.Point;
 
 /**
@@ -38,6 +40,8 @@ public class HandMeasurement {
     Point knuckle_attach_left, knuckle_attach_right;
     Point wrist_center;
 
+    ClippingBitmapView view;
+
     public HandMeasurement(){
         wrist_width = -1;
         knuckle_width = -1;
@@ -54,7 +58,16 @@ public class HandMeasurement {
         return depth_on_measurement != -1;
     }
 
+    public void enableView(ClippingBitmapView v){
+        view = v;
+    }
+
     public void measure(int[] depth_map, int dm_width, int dm_height, int handpoint_x, int handpoint_y, int handpoint_z){
+        view.centerClippingWindowOn(handpoint_x, handpoint_y);
+        view.enableDepthClipping(handpoint_z, 50);
+        view.newDepthMap(depth_map, dm_width, dm_height);
+        view.repaint();
+
         depthmap_width = dm_width;
         depthmap_height = dm_height;
         calc.newDepthMap(depth_map, dm_width, dm_height);
@@ -82,6 +95,10 @@ public class HandMeasurement {
         wrist_center = new Point(wrist_x_center, wrist_y);
         //here would be a good time to find thumb length
 
+        /*view.addPoint(thumbbase, Color.YELLOW, true);
+        view.addPoint(wrist_center, Color.CYAN, true);
+        view.repaint();*/
+
         //now lets go along the bridge of the hand and calculate the finger values
         int[] finger_mapping = new int[calc.getFingersDetected()]; //mapping that sorts the fingers in calc from least to greatest (thumb is index 0, pinky is 4)
         for(int x = 0; x < calc.getFingersDetected(); x++){ //basic selection sort; its a mapping sort and it's only ever going to be 5 indices so not worth bothering with more complicated MANUEVERS :)!
@@ -98,11 +115,11 @@ public class HandMeasurement {
             }
             finger_mapping[x] = lovi;
         }
-        thumb = calc.getFinger(calc.getFingerIndex(finger_mapping[0]));
-        index = calc.getFinger(calc.getFingerIndex(finger_mapping[1]));
-        middle = calc.getFinger(calc.getFingerIndex(finger_mapping[2]));
-        ring = calc.getFinger(calc.getFingerIndex(finger_mapping[3]));
-        pinky = calc.getFinger(calc.getFingerIndex(finger_mapping[4]));
+        thumb = calc.getFinger(finger_mapping[0]);
+        index = calc.getFinger(finger_mapping[1]);
+        middle = calc.getFinger(finger_mapping[2]);
+        ring = calc.getFinger(finger_mapping[3]);
+        pinky = calc.getFinger(finger_mapping[4]);
         int ring_pit = findNextLeftPitStartingAtIndex(calc.getFingerIndex(finger_mapping[4]));
         if(ring_pit == -1){
             System.out.println("Hand calculator could not find a pit for the ring finger, the pose must be incorrect.."); return;
@@ -180,7 +197,9 @@ public class HandMeasurement {
         //prefill the widths
         prev_width = getWidth(thumbbase.x, thumbbase.y);
         for(int x = 1; x <= prev_width_diff.length; x++){
-            int w = getWidth(gw_centerx, thumbbase.y - x);
+            dbgView(gw_centerx, thumbbase.y + x);
+            int w = getWidth(gw_centerx, thumbbase.y + x);
+            try{Thread.sleep(100);}catch(Exception e){}
             prev_width_diff[x-1] = w - prev_width;
             prev_width = w;
         }
@@ -189,12 +208,15 @@ public class HandMeasurement {
         int ycoord = thumbbase.y - 5;
         int w = 0;
         while(average(prev_width_diff) < 0.){
+            dbgView(gw_centerx, ycoord);
+            try{Thread.sleep(100);}catch(Exception e){}
             w = getWidth(gw_centerx, ycoord);
             prev_width_diff[pw_rptr] = w - prev_width;
             prev_width = w;
-            ycoord--;
+            ycoord++;
             pw_rptr = (pw_rptr + 1) % prev_width_diff.length;
         }
+            try{Thread.sleep(2000);}catch(Exception e){}
         wrist_y = ycoord;
         wrist_x_center = gw_centerx;
         return w;
@@ -202,12 +224,25 @@ public class HandMeasurement {
 
     //these functions all return indices within the point outlined created by calc
 
+    private void dbgView(Point p){
+        dbgView(p.x, p.y);
+    }
+    private void dbgView2(Point p){
+        view.addPoint(p, Color.ORANGE, true);
+        view.repaint();
+    }
+    private void dbgView(int x, int y){
+        view.addPoint(new Point(x, y), Color.YELLOW, true);
+        view.repaint();
+    }
+
     //this function REQUIRES that the depth map of the hand has a distance of at least
     //20 points on the y axis between the tip of the thumb and the pit of the thumb. It
     //also requires that the depth map cannot have 20 units of error.
     private int findPitAboveThumbBase(){
         int cind = calc.figurePointCount() - 1;
         int cind_el = calc.getFigureY(0);
+        dbgView(calc.getFigure(0));
         
         //start by following the outline left until it hits an edge and goes up.
         while(calc.getFigureY(cind) == cind_el){
@@ -236,7 +271,7 @@ public class HandMeasurement {
         min_found_y = max_found_y;
 
         //phase 2, search until we've come back up to the maximum
-        while(cind > 0 && calc.getFigureY(cind) > max_found){
+        while(cind > 0 && calc.getFigureY(cind) > max_found_y){
             int fy = calc.getFigureY(cind);
             if(fy > min_found_y){
                 min_found = cind; min_found_y = fy;
