@@ -23,11 +23,14 @@ public class TraceClient implements Runnable{
     byte[] depth_buffer_raw = null;
     boolean running = false;
     InputStream src;
+    int frame_counter = 0;
 
     //logging
     final boolean DO_LOGGING = false;
     boolean recording_started;
     DataOutputStream log_os;
+    
+    final int FRAME_SKIP = 1; //skip every (n-1) frames
 
     public TraceClient(InputStream source){
         src = source;
@@ -136,7 +139,7 @@ public class TraceClient implements Runnable{
             }
         });
     }
-    
+
     public void run(){
         running = true;
         recording_started = false; //dont record until the first receipt of a hand signal
@@ -144,6 +147,7 @@ public class TraceClient implements Runnable{
         try{
             DataInputStream bin = new DataInputStream(src);
             while(running){
+                int hm_count = 0, dm_count = 0;
                 int cmd = leShort(bin.readShort() & 0xffff);
                 if(DO_LOGGING && cmd == 0) recording_started = true; //0 is the code for the hand moved message.
                 if(recording_started){
@@ -153,6 +157,8 @@ public class TraceClient implements Runnable{
                 }
                 switch(cmd){
                 case 0: //hand moved message
+                    hm_count++;
+                    if(hm_count % FRAME_SKIP != 0) break;
                     double x = leInt(bin.readInt());
                     double y = leInt(bin.readInt());
                     double z = leInt(bin.readInt());
@@ -167,6 +173,8 @@ public class TraceClient implements Runnable{
                     }
                     break;
                 case 1: //new depth map message
+                    dm_count++;
+                    if(dm_count % FRAME_SKIP != 0) break;
                     int len = leInt(bin.readInt());
                     int w = leShort(bin.readShort());
                     if(recording_started){
@@ -195,6 +203,7 @@ public class TraceClient implements Runnable{
                     }
                     break;
                 }
+                frame_counter++;
                 if(recording_started){
                     log_os.flush();
                 }
