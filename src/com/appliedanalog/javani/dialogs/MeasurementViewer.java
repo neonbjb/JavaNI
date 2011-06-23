@@ -34,8 +34,10 @@ public class MeasurementViewer extends javax.swing.JDialog {
 
     public void attachMeasurement(HandMeasurement m){
         measurement = m;
-        view.enableDepthClipping(m.getMeasurementDepth(), 50);
-        view.centerClippingWindowOn(m.getMeasurementCenterOfHand().x, m.getMeasurementCenterOfHand().y);
+        view.enableDepthClipping(m.calc.depthAt(m.calc.getHandX(), m.calc.getHandY()), 50);
+        view.centerClippingWindowOn(m.calc.getHandX(), m.calc.getHandY());
+        //view.enableDepthClipping(m.getMeasurementDepth(), 50);
+        //view.centerClippingWindowOn(m.getMeasurementCenterOfHand().x, m.getMeasurementCenterOfHand().y);
         //draw measurement information.
         view.addPoint(m.getMeasurementCenterOfHand(), Color.CYAN, true);
         view.addPoint(m.getWristCenter(), Color.YELLOW, true);

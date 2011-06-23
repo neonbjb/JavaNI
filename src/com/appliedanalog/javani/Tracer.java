@@ -2,11 +2,11 @@ package com.appliedanalog.javani;
 
 import com.appliedanalog.javani.dialogs.MeasurementViewer;
 import com.appliedanalog.javani.generators.TraceClient;
+import com.appliedanalog.javani.generators.TraceClientFromLog;
 import com.appliedanalog.javani.listeners.DepthMapListener;
 import com.appliedanalog.javani.listeners.HandMovementListener;
 import com.appliedanalog.javani.listeners.MessageTransmitter;
 import com.appliedanalog.javani.processors.HandMeasurement;
-import java.net.Socket;
 
 /**
  *
@@ -23,9 +23,9 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
     public Tracer() {
         try{
             //init variables
-            Socket sock = new Socket("localhost", 18353);
-            client = new TraceClient(sock.getInputStream());
-            //client = new TraceClientFromLog("trace_log.bin");
+            //Socket sock = new Socket("localhost", 18353);
+            //client = new TraceClient(sock.getInputStream());
+            client = new TraceClientFromLog("trace_log.bin");
             client.addHandListener(this);
             client.addDepthListener(this);
             client.start();
@@ -117,7 +117,6 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
         MeasurementViewer mviewer = new MeasurementViewer(this, depth_map, dm_width, dm_height);
         mviewer.setVisible(true);
         HandMeasurement measurement = new HandMeasurement();
-        measurement.enableView(mviewer.getView());
         measurement.measure(depth_map, dm_width, dm_height, (int)hx, (int)hy, (int)hz);
         if(!measurement.handMeasured()){
             lText.setText("Error measuring hand, see console.");

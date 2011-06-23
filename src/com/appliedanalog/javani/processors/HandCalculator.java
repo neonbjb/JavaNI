@@ -63,7 +63,7 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     }
 
     public boolean isOnHand(int x, int y){
-        return Math.abs(depthAt(x, y) - depthAt(cur_hx, cur_hy)) > depth_sensitivity;
+        return Math.abs(depthAt(x, y) - depthAt(cur_hx, cur_hy)) < depth_sensitivity;
     }
 
     /**
@@ -247,7 +247,11 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
      * @return
      */
     public Point iterateTillVoid(int sx, int sy, int ix, int iy){
-        return new Point(-1, -1);
+        while(isOnHand(sx, sy)){
+            sx += ix;
+            sy += iy;
+        }
+        return new Point(sx - ix, sy - iy);
     }
 
     int cx, cy;

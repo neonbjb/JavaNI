@@ -29,7 +29,7 @@ public class HandMeasurement {
     int depth_on_measurement; //perhaps the most important variable, defines the depth of the center of the hand when this measurement took place, which can later be refrenced for scaling purposes.
     Point center_of_hand; //measured center of hand, obviously irrelevant in future states
 
-    HandCalculator calc; //used to trace the outline of the hand.
+    public HandCalculator calc; //used to trace the outline of the hand.
 
     int depthmap_width, depthmap_height;
 
@@ -39,8 +39,6 @@ public class HandMeasurement {
     Point athumb, aindex, amiddle, aring, apinky;
     Point knuckle_attach_left, knuckle_attach_right;
     Point wrist_center;
-
-    ClippingBitmapView view;
 
     public HandMeasurement(){
         wrist_width = -1;
@@ -58,15 +56,7 @@ public class HandMeasurement {
         return depth_on_measurement != -1;
     }
 
-    public void enableView(ClippingBitmapView v){
-        view = v;
-    }
-
     public void measure(int[] depth_map, int dm_width, int dm_height, int handpoint_x, int handpoint_y, int handpoint_z){
-        view.centerClippingWindowOn(handpoint_x, handpoint_y);
-        view.enableDepthClipping(handpoint_z, 50);
-        view.newDepthMap(depth_map, dm_width, dm_height);
-        view.repaint();
 
         depthmap_width = dm_width;
         depthmap_height = dm_height;
@@ -197,26 +187,21 @@ public class HandMeasurement {
         //prefill the widths
         prev_width = getWidth(thumbbase.x, thumbbase.y);
         for(int x = 1; x <= prev_width_diff.length; x++){
-            dbgView(gw_centerx, thumbbase.y + x);
             int w = getWidth(gw_centerx, thumbbase.y + x);
-            try{Thread.sleep(100);}catch(Exception e){}
             prev_width_diff[x-1] = w - prev_width;
             prev_width = w;
         }
 
         //iterate until the average derivative of widths goes from negative to zero or more
-        int ycoord = thumbbase.y - 5;
+        int ycoord = thumbbase.y + 5;
         int w = 0;
         while(average(prev_width_diff) < 0.){
-            dbgView(gw_centerx, ycoord);
-            try{Thread.sleep(100);}catch(Exception e){}
             w = getWidth(gw_centerx, ycoord);
             prev_width_diff[pw_rptr] = w - prev_width;
             prev_width = w;
             ycoord++;
             pw_rptr = (pw_rptr + 1) % prev_width_diff.length;
         }
-            try{Thread.sleep(2000);}catch(Exception e){}
         wrist_y = ycoord;
         wrist_x_center = gw_centerx;
         return w;
@@ -224,25 +209,12 @@ public class HandMeasurement {
 
     //these functions all return indices within the point outlined created by calc
 
-    private void dbgView(Point p){
-        dbgView(p.x, p.y);
-    }
-    private void dbgView2(Point p){
-        view.addPoint(p, Color.ORANGE, true);
-        view.repaint();
-    }
-    private void dbgView(int x, int y){
-        view.addPoint(new Point(x, y), Color.YELLOW, true);
-        view.repaint();
-    }
-
     //this function REQUIRES that the depth map of the hand has a distance of at least
     //20 points on the y axis between the tip of the thumb and the pit of the thumb. It
     //also requires that the depth map cannot have 20 units of error.
     private int findPitAboveThumbBase(){
         int cind = calc.figurePointCount() - 1;
         int cind_el = calc.getFigureY(0);
-        dbgView(calc.getFigure(0));
         
         //start by following the outline left until it hits an edge and goes up.
         while(calc.getFigureY(cind) == cind_el){
