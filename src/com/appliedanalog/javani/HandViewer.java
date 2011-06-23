@@ -8,7 +8,6 @@ package com.appliedanalog.javani;
 import com.appliedanalog.javani.processors.HandCalculator;
 import com.appliedanalog.javani.generators.TraceClient;
 import com.appliedanalog.javani.listeners.HandMovementListener;
-import com.appliedanalog.javani.dialogs.HandViewerController;
 import java.awt.Color;
 import java.awt.Point;
 
@@ -17,7 +16,6 @@ import java.awt.Point;
  * @author jbetker
  */
 public class HandViewer extends javax.swing.JFrame implements HandMovementListener {
-    HandViewerController controller;
     HandCalculator calc;
     MouseFollower mouse;
     TraceClient client;
@@ -30,13 +28,8 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
         client = cli;
         calc = new HandCalculator();
         mouse = new MouseFollower();
-        
-        controller = new HandViewerController(this, viewGraph1);
-        controller.setLocation(getLocation().x, getLocation().y + getHeight());
-        controller.setVisible(true);
 
         //the order is important here
-        cli.addHandListener(controller);
         cli.addHandListener(calc);
         cli.addHandListener(this);
         cli.addHandListener(mouse);
@@ -95,7 +88,12 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
             //mouse.mouseup();
             clicked = false;
         }
+        viewGraph1.syncpaint();
         viewGraph1.repaint();
+        
+        //recenter for the next frame.. this frame's already dead jim :)
+        viewGraph1.enableDepthClipping((int)iz, 50);
+        viewGraph1.centerClippingWindowOn((int)ix, (int)iy);
     }
 
     public void newCalibration(double tx, double ty, double bx, double by, double z) { }
@@ -133,7 +131,6 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
     }// </editor-fold>//GEN-END:initComponents
 
     private void formComponentMoved(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentMoved
-        controller.setLocation(getLocation().x, getLocation().y + getHeight());
     }//GEN-LAST:event_formComponentMoved
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

@@ -40,11 +40,14 @@ public class TraceClientFromLog extends TraceClient{
             Thread.sleep(500); //dont ask me why.............. :(
             int counter = 0;
             while(running){
+                int hm_count = 0, dm_count = 0;
                 long wait_time = log_is.readLong();
                 if(counter != 0) Thread.sleep(wait_time);
                 int cmd = log_is.readShort();
                 switch(cmd){
                 case 0: //hand moved message
+                    hm_count++;
+                    if(hm_count % FRAME_SKIP != 0) break;
                     double x = log_is.readInt();
                     double y = log_is.readInt();
                     double z = log_is.readInt();
@@ -55,6 +58,8 @@ public class TraceClientFromLog extends TraceClient{
                     }
                     break;
                 case 1: //new depth map message
+                    dm_count++;
+                    if(dm_count % FRAME_SKIP != 0) break;
                     int len = log_is.readInt();
                     int w = log_is.readShort();
                     if(depth_buffer == null || depth_buffer.length != len){

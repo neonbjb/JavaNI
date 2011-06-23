@@ -3,10 +3,10 @@ package com.appliedanalog.javani.graphs;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
 import com.appliedanalog.javani.listeners.DepthMapListener;
 import java.awt.Point;
+import java.util.concurrent.Semaphore;
 
 /**
  *
@@ -64,6 +64,7 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     public void setResolution(int rx, int ry){
         resx = rx;
         resy = ry;
+        bufimg = new BufferedImage(rx, ry, BufferedImage.TYPE_3BYTE_BGR);
         img_data = new int[rx * ry];
     }
 
@@ -112,9 +113,47 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
             }
             id_ptr++;
         }
-        repaint();
     }
-    
+
+    //this allows a synchronous painting operation
+    Semaphore imgbuf_sem = new Semaphore(1);
+    boolean prepainted = false;
+    public void syncpaint(){
+        try{
+            imgbuf_sem.acquire();
+            prepainted = true;
+            Graphics g = bufimg.createGraphics();
+
+            //we should be stashing the buffered image if possible
+            for(int x = 0; x < img_data.length; x++){
+                bufimg.setRGB(x % resx, x / resx, img_data[x]);
+            }
+            g.drawImage(bufimg, 0, 0, null);
+
+            for(int x = 0; x < num_points; x++){
+                int rectsz = (big_point[x] ? 5 : 1);
+                int px = (big_point[x] ? points[x].x - 2 : points[x].x) - clipx;
+                int py = (big_point[x] ? points[x].y - 2 : points[x].y) - clipy;
+                g.setColor(point_colors[x]);
+                g.fillRect(px, py, rectsz, rectsz);
+            }
+
+            for(int x = 0; x < num_lines; x++){
+                g.setColor(line_colors[x]);
+                g.drawLine(lines[x][0].x-clipx, lines[x][0].y-clipy, lines[x][1].x-clipx, lines[x][1].y-clipy);
+            }
+
+            //strings are unique because they are not relative
+            for(int x = 0; x < num_strings; x++){
+                g.setColor(strcolors[x]);
+                g.drawString(strings[x], strlocs[x].x, strlocs[x].y);
+            }
+        }catch(Exception e){
+        }finally{
+            imgbuf_sem.release();
+        }
+    }
+
     /**
      * Implemented from Canvas. Manages double buffering for semi-smooth frame
      * progression.
@@ -129,49 +168,17 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
      * @param g2 Graphics to draw onto.
      */
     public void paint(Graphics g2){
-        int w = this.getWidth();
-        int h = this.getHeight();
-        
-        BufferedImage i = new BufferedImage(w, h, ColorSpace.TYPE_RGB);
-        Graphics g = i.createGraphics();
-        
-        //we should be stashing the buffered image if possible
-        for(int x = 0; x < img_data.length; x++){
-            bufimg.setRGB(x % resx, x / resx, img_data[x]);
+        if(!prepainted){
+            syncpaint();
+            prepainted = false;
         }
-        g.drawImage(bufimg, 0, 0, null);
-
-        for(int x = 0; x < num_points; x++){
-            int rectsz = (big_point[x] ? 5 : 1);
-            int px = (big_point[x] ? points[x].x - 2 : points[x].x) - clipx;
-            int py = (big_point[x] ? points[x].y - 2 : points[x].y) - clipy;
-            g.setColor(point_colors[x]);
-            g.fillRect(px, py, rectsz, rectsz);
+        try{
+            imgbuf_sem.acquire();
+            g2.drawImage(bufimg, 0, 0, this);
+        }catch(Exception e){
+        }finally{
+            imgbuf_sem.release();
         }
-
-        for(int x = 0; x < num_lines; x++){
-            g.setColor(line_colors[x]);
-            g.drawLine(lines[x][0].x-clipx, lines[x][0].y-clipy, lines[x][1].x-clipx, lines[x][1].y-clipy);
-        }
-
-        //strings are unique because they are not relative
-        for(int x = 0; x < num_strings; x++){
-            g.setColor(strcolors[x]);
-            g.drawString(strings[x], strlocs[x].x, strlocs[x].y);
-        }
-        
-
-        /*//draw hand orientation vector
-        g.setColor(Color.RED.darker());
-        g.fillRect(ch_x - 2, ch_y - 2, 5, 5);
-        g.drawLine(ch_x, ch_y, 
-                ch_x + (int)(200. * Math.cos(hand_orientation_angle * Math.PI / 180.)),
-                ch_y - (int)(200. * Math.sin(hand_orientation_angle * Math.PI / 180.)));
-        if(display_dbg1){
-            g.drawString(dbg1_text, 20, 20);
-        }*/
-        
-        g2.drawImage(i, 0, 0, this);
     }
 
     public int addString(String s, Point p1){
@@ -291,6 +298,7 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     }
 
     public void clearPoints(int ps, int pe){
+        int i = 0;
         for(int x = ps; x < pe; x++){
             points[x] = new Point(0, 0);
             point_colors[x] = Color.BLACK;
