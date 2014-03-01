@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{e15feccc-a5c0-40a0-890a-72ab05eca031}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Res">
+      <UniqueIdentifier>{89351b40-b571-414a-923e-129c7e51f6e5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="PointDrawer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="PointDrawer.h" />
+    <ClInclude Include="Res\Resource-NITE.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Res\mainicon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Res\NITE.rc" />
+  </ItemGroup>
+</Project>
