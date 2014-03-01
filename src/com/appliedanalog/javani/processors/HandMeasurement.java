@@ -1,8 +1,7 @@
 package com.appliedanalog.javani.processors;
 
-import com.appliedanalog.javani.graphs.ClippingBitmapView;
-import java.awt.Color;
 import java.awt.Point;
+import java.io.Serializable;
 
 /**
  * This class centers around the measure() method, which takes in a depth map under
@@ -12,7 +11,7 @@ import java.awt.Point;
  * This class has a number of methods that currently work under the presumption that the hand being measured is the right hand.
  * @author jbetker
  */
-public class HandMeasurement {
+public class HandMeasurement implements Serializable {
     /* hand measurements */
     int wrist_width; //measures the hand at the wrist, which is algorithmically defined as the horizontal line below the pit that defines the top of the base of the thumb where the width or the aforementioned line stops decreasing
     int knuckle_width;  //measures the width of the knuckles, which is defined as the line spanning across the hand directly above which are the three pits corresponding to the four fingers
@@ -29,7 +28,7 @@ public class HandMeasurement {
     int depth_on_measurement; //perhaps the most important variable, defines the depth of the center of the hand when this measurement took place, which can later be refrenced for scaling purposes.
     Point center_of_hand; //measured center of hand, obviously irrelevant in future states
 
-    public HandCalculator calc; //used to trace the outline of the hand.
+    public transient HandCalculator calc; //used to trace the outline of the hand.
 
     int depthmap_width, depthmap_height;
 
@@ -302,7 +301,7 @@ public class HandMeasurement {
 
     public int getWristWidth(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(wrist_width, dd);
+        return (int)PerspectiveScaler.scale(wrist_width, dd);
     }
 
     public int getKnuckleWidth(){
@@ -311,7 +310,7 @@ public class HandMeasurement {
 
     public int getKnuckleWidth(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(knuckle_width, dd);
+        return (int)PerspectiveScaler.scale(knuckle_width, dd);
     }
 
     public int getKnuckleHeight(){
@@ -320,7 +319,7 @@ public class HandMeasurement {
 
     public int getKnuckleHeight(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(knuckle_height, dd);
+        return (int)PerspectiveScaler.scale(knuckle_height, dd);
     }
 
     public int getThumbWebbingHeight(){
@@ -329,7 +328,7 @@ public class HandMeasurement {
 
     public int getThumbWebbingHeight(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(thumb_webbing_height, dd);
+        return (int)PerspectiveScaler.scale(thumb_webbing_height, dd);
     }
 
     public int getMiddleFingerLength(){
@@ -338,7 +337,7 @@ public class HandMeasurement {
 
     public int getMiddleFingerLength(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(middle_finger_length, dd);
+        return (int)PerspectiveScaler.scale(middle_finger_length, dd);
     }
 
     public int getIndexFingerLength(){
@@ -347,7 +346,7 @@ public class HandMeasurement {
 
     public int getIndexFingerLength(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(index_finger_length, dd);
+        return (int)PerspectiveScaler.scale(index_finger_length, dd);
     }
 
     public int getThumbLength(){
@@ -356,7 +355,7 @@ public class HandMeasurement {
 
     public int getThumbLength(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(thumb_length, dd);
+        return (int)PerspectiveScaler.scale(thumb_length, dd);
     }
 
     public int getDistanceToPinky(){
@@ -365,7 +364,7 @@ public class HandMeasurement {
 
     public int getDistanceToPinky(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(distance_to_pinky, dd);
+        return (int)PerspectiveScaler.scale(distance_to_pinky, dd);
     }
 
     public int getDistanceToRing(){
@@ -374,7 +373,7 @@ public class HandMeasurement {
 
     public int getDistanceToRing(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(distance_to_ring, dd);
+        return (int)PerspectiveScaler.scale(distance_to_ring, dd);
     }
 
     public int getDistanceToMiddle(){
@@ -383,7 +382,7 @@ public class HandMeasurement {
 
     public int getDistanceToMiddle(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(distance_to_middle, dd);
+        return (int)PerspectiveScaler.scale(distance_to_middle, dd);
     }
 
     public int getDistanceToIndex(){
@@ -392,7 +391,7 @@ public class HandMeasurement {
 
     public int getDistanceToIndex(int cohd){
         int dd = depth_on_measurement - cohd;
-        return (int)PerspectiveScaler.getScaler().scale(distance_to_index, dd);
+        return (int)PerspectiveScaler.scale(distance_to_index, dd);
     }
 
     //The fields below are frame-specific: they describe the depth map as it was when

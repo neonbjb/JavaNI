@@ -8,6 +8,7 @@ package com.appliedanalog.javani;
 import com.appliedanalog.javani.processors.HandCalculator;
 import com.appliedanalog.javani.generators.TraceClient;
 import com.appliedanalog.javani.listeners.HandMovementListener;
+import com.appliedanalog.javani.processors.HandMeasurement;
 import java.awt.Color;
 import java.awt.Point;
 
@@ -94,6 +95,10 @@ public class HandViewer extends javax.swing.JFrame implements HandMovementListen
         //recenter for the next frame.. this frame's already dead jim :)
         viewGraph1.enableDepthClipping((int)iz, 50);
         viewGraph1.centerClippingWindowOn((int)ix, (int)iy);
+    }
+
+    public void setMeasurement(HandMeasurement m){
+        calc.attachMeasurement(m);
     }
 
     public void newCalibration(double tx, double ty, double bx, double by, double z) { }

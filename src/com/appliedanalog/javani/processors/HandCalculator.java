@@ -9,10 +9,10 @@ import com.appliedanalog.javani.listeners.HandMovementListener;
  * @author jbetker
  */
 public class HandCalculator implements DepthMapListener, HandMovementListener {
+    HandMeasurement measurement = null;
+
     int frame_count;
-
     double depth_sensitivity;
-
     double hand_orientation = 90; //in degrees, 0deg is straight up
     double[] hand_orientations = new double[5]; //for smoothing
     int rptr_ho = 0; //rotating pointer for that smoothing value.
@@ -31,6 +31,10 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         depth_sensitivity = 80.;
         frame_count = 0;
     }
+
+    public void attachMeasurement(HandMeasurement m){
+        measurement = m;
+    }
     
     /**
      * Load the depth image stored in <dd> into the calculator, resetting all of the
@@ -48,8 +52,19 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         if(cur_dd == null) return; //havent gotten a depth map yet for some reason..
         cur_hx = (int)x;
         cur_hy = (int)y;
-        recalcTrueHandCenter();
-        recalcHandOrientation();
+        placeCoordsOnHand();
+        if(measurement != null){
+            double hand_height = measurement.getKnuckleHeight();
+            double hh = measurement.getKnuckleHeight(depthAt(cur_hx, cur_hy));
+            System.out.println("Knuckle height: " + hand_height + " adjusted: " + hh);
+            Point p = moveDownDistanceOnHand(cur_hx, cur_hy, (int)hh);
+            cur_hx = p.x;
+            cur_hy = p.y;
+        }else{
+            Point p = moveDownDistanceOnHand(cur_hx, cur_hy, 50);
+            cur_hx = p.x;
+            cur_hy = p.y;
+        }
         recalcHandShape();
         recalcHandArea();
     }
@@ -67,89 +82,31 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     }
 
     /**
-     * Does correction on the precomputed hand center to get a better estimate
-     * for where it truly is.
+     * Does correction on the precomputed hand center to at least get the damn thing ON the hand
      */
-    private void recalcTrueHandCenter(){
-        cur_hy += 70; //just a simple adjustment moves the center down a tad for better calcuations.
-        if(hand_orientation == 90) return;
-        //otherwise, use what we know about the orientation of the hand to adjust the x-value.
-        double o = hand_orientation;
-        if(o > 90.){
-            o -= 180.;
+    int last_hand_depth = -1;
+    private void placeCoordsOnHand(){
+        if(last_hand_depth != -1 &&
+           Math.abs(depthAt(cur_hx, cur_hy) - last_hand_depth) > depth_sensitivity){
+            //move in circles with incremented radius' of 5 and degrees of 10, starting at 5 and stopping at 200, seeing if we can find a point on the hand.
+            for(int r = 5; r < 200; r+=5){
+                for(int a = 0; a < 360; a+=10){
+                    int tx = (int)((double)cur_hx + (double)r * Math.cos(a * 2 * Math.PI / 360));
+                    int ty = (int)((double)cur_hy + (double)r * Math.sin(a * 2 * Math.PI / 360));
+                    if(Math.abs(depthAt(cur_hx, cur_hy) - last_hand_depth) < depth_sensitivity){
+                        cur_hx = tx;
+                        cur_hy = ty;
+                        last_hand_depth = depthAt(cur_hx, cur_hy);
+                        return;
+                    }
+                }
+            }
         }
-        o = (o * Math.PI) / 180.;
-        cur_hx -= 70. / Math.tan(o);
+        last_hand_depth = depthAt(cur_hx, cur_hy);
     }
     
-    /**
-     * Starting at the hand origin, this function continuously finds the mid-points of
-     * lines spanning horizontally across the hand. The assumption is that the hand is (in general)
-     * bilaterally symmetric (obviously the thumb causes this not to be true, hence the following limitation)
-     * This will only be valid on hand orientations between around -30deg to +30deg from a right angle. Future
-     * implementations will detect fingers extending horizontally and use vertical spanning lines
-     * to get the proper orientation in sideways situations.
-     */
-    final int NUMBER_OF_LINES = 10; //number of spanning lines to find the midpoint of to calculate the orientation. more lines is more accurate until you start reaching non-symmetric parts of the hand (fingers, joined hand/thumb)
-    final int SPAN_INCREMENT = 2; //amount to increment the vertical counter for each spanning line
-    final int ANGLE_BOUND = 30; //defines the bounding fan for valid angle values (it would just be invalid above or below this...)
-    final int MAX_WIDTH_DIFF = 30;
-    public int[] midpoints = new int[NUMBER_OF_LINES];
-    public int _mp_y;
     public void recalcHandOrientation(){
-        double home_depth = depthAt(cur_hx, cur_hy);
-        int running_width = -1;
-        for(int x = 0, y = 0; x < NUMBER_OF_LINES; x++, y++){
-            int yv = cur_hy - SPAN_INCREMENT * y; //find current height
-            if(Math.abs(depthAt(cur_hx, yv) - home_depth) > depth_sensitivity){
-                //we're done, we've surpassed the hand..
-                return;
-            }
-            int r, l; //these will hold the left and right pointers
-            for(l = 0; l < cur_hx && Math.abs(depthAt(cur_hx - l, yv) - home_depth) <= depth_sensitivity; l++); //badass loop that does calculations :)
-            for(r = 0; (r + cur_hx) < dd_width && Math.abs(depthAt(cur_hx + r, yv) - home_depth) <= depth_sensitivity; r++); //and another one!
-            if(running_width == -1) running_width = r - l;
-            else if(Math.abs(running_width - (r - l)) > MAX_WIDTH_DIFF){ //the width is varying too drastically..
-                x = 0; //restart the calculation
-                continue;
-            }
-            l = cur_hx - l; r = cur_hx + r; //convert these into real points on the depth map
-            midpoints[x] = (r + l) / 2;
-            //debug("Midpoint (" + r + ", " + l + ")--" + x + " deviation from hand center: " + (cur_hx - midpoints[x]));
 
-            //for debugging
-            _mp_y = y;
-        }
-        _mp_y = cur_hy - SPAN_INCREMENT * (_mp_y - NUMBER_OF_LINES);
-
-        //do linear squares regression to get a line slope
-        double sx = 0., sy = 0., sxs = 0., sxy = 0.;
-        boolean vert = true;
-        for(int x = 0; x < NUMBER_OF_LINES; x++){
-            if(vert && x > 0){
-                if(midpoints[x] != midpoints[x-1]) vert = false; //if any of the x's are different, then its not vertical!
-            }
-            sx += midpoints[x];
-            sxs += (midpoints[x] * midpoints[x]);
-            sy += cur_hy - SPAN_INCREMENT * x;
-            sxy += midpoints[x] * (cur_hy - SPAN_INCREMENT * x);
-        }
-        if(vert || midpoints[0] == midpoints[NUMBER_OF_LINES-1]){
-            hand_orientation = 90;
-            debug("Orientation is vertical (90deg)");
-        }else{
-            sx /= (double)NUMBER_OF_LINES; sy /= (double)NUMBER_OF_LINES;
-            sxs /= (double)NUMBER_OF_LINES; sxy /= (double)NUMBER_OF_LINES;
-            double slope = - (sxy - sx * sy) / (sxs - sx * sx); //negate it because the way we are doing this calculates a backwards angle, we want it wrt the positive x axis
-            double norient = Math.atan(slope);
-            norient = norient * 180 / Math.PI; //tan puts out radians.
-            if(norient < 0) norient += 180;
-            if(norient > 90 - ANGLE_BOUND && norient < 90 + ANGLE_BOUND){
-                hand_orientation = norient;
-            }
-        }
-        hand_orientations[rptr_ho] = hand_orientation;
-        rptr_ho = (rptr_ho + 1) % (hand_orientations.length);
     }
     
     /**
@@ -214,6 +171,33 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
     }
 
     /**
+     * Starting at a point on the hand, move down in any direction, maintaining
+     * a certainty that you are still within the hands bounds a specified distance.
+     * @param sx
+     * @param xy
+     * @param distance
+     */
+    public Point moveDownDistanceOnHand(int sx, int sy, int distance){
+        int cx = sx;
+        int cy = sy;
+        int depth = depthAt(sx, sy);
+        while(distance(sx, sy, cx, cy) < distance){
+            //always prefer going down if possible. never go up.
+            if(Math.abs(depthAt(cx, cy + 1) - depth) > depth_sensitivity){
+                //re-center the point on the hand
+                cx = center(cx, cy);
+                if(Math.abs(depthAt(cx, cy + 1) - depth) > depth_sensitivity){
+                    System.out.println("moveDownDistanceOnHand: got trapped somehow! bailing..");
+                    return new Point(cx, cy);
+                }
+            }else{
+                cy++;
+            }
+        }
+        return new Point(cx, cy);
+    }
+
+    /**
      * Calculates the distance of a given point in the depth map from the center
      * of the hand. DOES INCLUDE DEPTH IN THE CALCULATION (obviously somewhat inaccurate
      * due to the non-units of depth)
@@ -235,6 +219,16 @@ public class HandCalculator implements DepthMapListener, HandMovementListener {
         p.x = (x1 + x2) / 2;
         p.y = (y1 + y2) / 2;
         return p;
+    }
+
+    //finds the left and right walls at the current elevation and returns the center of the hand here.
+    //p MUST be on the hand
+    public int center(int sx, int sy){
+        int lx = sx, rx = sx;
+        int s_depth = depthAt(sx, sy);
+        while(lx >= 0 && (Math.abs(depthAt(lx, sy) - s_depth) < depth_sensitivity)) lx--;
+        while(rx < dd_width && (Math.abs(depthAt(rx, sy) - s_depth) < depth_sensitivity)) rx++;
+        return lx + rx / 2;
     }
 
     /**

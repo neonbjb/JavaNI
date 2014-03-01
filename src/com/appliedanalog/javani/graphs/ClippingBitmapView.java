@@ -22,8 +22,8 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
     int clipping_depth = 0;
     int clipping_window = 1;
 
-    Color[] line_colors = new Color[100];
-    Point[][] lines = new Point[100][2];
+    Color[] line_colors = new Color[1000];
+    Point[][] lines = new Point[1000][2];
     int num_lines = 0;
 
     boolean[] big_point = new boolean[50000];
@@ -130,14 +130,6 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
             }
             g.drawImage(bufimg, 0, 0, null);
 
-            for(int x = 0; x < num_points; x++){
-                int rectsz = (big_point[x] ? 5 : 1);
-                int px = (big_point[x] ? points[x].x - 2 : points[x].x) - clipx;
-                int py = (big_point[x] ? points[x].y - 2 : points[x].y) - clipy;
-                g.setColor(point_colors[x]);
-                g.fillRect(px, py, rectsz, rectsz);
-            }
-
             for(int x = 0; x < num_lines; x++){
                 g.setColor(line_colors[x]);
                 g.drawLine(lines[x][0].x-clipx, lines[x][0].y-clipy, lines[x][1].x-clipx, lines[x][1].y-clipy);
@@ -147,6 +139,14 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
             for(int x = 0; x < num_strings; x++){
                 g.setColor(strcolors[x]);
                 g.drawString(strings[x], strlocs[x].x, strlocs[x].y);
+            }
+
+            for(int x = 0; x < num_points; x++){
+                int rectsz = (big_point[x] ? 5 : 1);
+                int px = (big_point[x] ? points[x].x - 2 : points[x].x) - clipx;
+                int py = (big_point[x] ? points[x].y - 2 : points[x].y) - clipy;
+                g.setColor(point_colors[x]);
+                g.fillRect(px, py, rectsz, rectsz);
             }
         }catch(Exception e){
         }finally{
@@ -251,6 +251,10 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
         return num_lines-qty;
     }
 
+    public void clearLines(){
+        num_lines = 0;
+    }
+
     public void removeLine(int ln){
         Point[] tp; Color tc;
         for(int x = ln; x < num_lines - 1; x++){
@@ -304,6 +308,10 @@ public class ClippingBitmapView extends Canvas implements DepthMapListener{
             point_colors[x] = Color.BLACK;
             big_point[x] = false;
         }
+    }
+
+    public void clearPoints(){
+        num_points = 0;
     }
 
     public void removePoint(int ln){

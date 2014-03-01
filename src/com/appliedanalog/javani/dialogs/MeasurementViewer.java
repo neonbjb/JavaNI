@@ -28,6 +28,7 @@ public class MeasurementViewer extends javax.swing.JDialog {
         dm_width = dmw;
         dm_height = dmh;
 
+        view.setResolution(600, 480);
         view.newDepthMap(depthmap, dmw, dmh);
         view.repaint();
     }
@@ -35,7 +36,7 @@ public class MeasurementViewer extends javax.swing.JDialog {
     public void attachMeasurement(HandMeasurement m){
         measurement = m;
         view.enableDepthClipping(m.calc.depthAt(m.calc.getHandX(), m.calc.getHandY()), 50);
-        view.centerClippingWindowOn(m.calc.getHandX(), m.calc.getHandY());
+        //view.centerClippingWindowOn(m.calc.getHandX(), m.calc.getHandY());
         //view.enableDepthClipping(m.getMeasurementDepth(), 50);
         //view.centerClippingWindowOn(m.getMeasurementCenterOfHand().x, m.getMeasurementCenterOfHand().y);
         //draw measurement information.
@@ -93,11 +94,11 @@ public class MeasurementViewer extends javax.swing.JDialog {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(view, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE)
+            .addComponent(view, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 640, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(view, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 300, Short.MAX_VALUE)
+            .addComponent(view, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 480, Short.MAX_VALUE)
         );
 
         pack();

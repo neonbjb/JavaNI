@@ -2,11 +2,17 @@ package com.appliedanalog.javani;
 
 import com.appliedanalog.javani.dialogs.MeasurementViewer;
 import com.appliedanalog.javani.generators.TraceClient;
-import com.appliedanalog.javani.generators.TraceClientFromLog;
 import com.appliedanalog.javani.listeners.DepthMapListener;
 import com.appliedanalog.javani.listeners.HandMovementListener;
 import com.appliedanalog.javani.listeners.MessageTransmitter;
 import com.appliedanalog.javani.processors.HandMeasurement;
+import com.appliedanalog.javani.processors.PerspectiveScaler;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
 
 /**
  *
@@ -18,14 +24,21 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
     int dm_width, dm_height;
     TraceClient client;
     HandViewer viewer;
+    HandMeasurement measurement;
 
     /** Creates new form Tracer */
     public Tracer() {
         try{
+            File f = new File("measurement.obj");
+            if(f.exists()){
+                ObjectInputStream ois = new ObjectInputStream(new FileInputStream(f));
+                measurement = (HandMeasurement)ois.readObject();
+                ois.close();
+            }
             //init variables
-            //Socket sock = new Socket("localhost", 18353);
-            //client = new TraceClient(sock.getInputStream());
-            client = new TraceClientFromLog("trace_log.bin");
+            Socket sock = new Socket("localhost", 18353);
+            client = new TraceClient(sock.getInputStream());
+            //client = new TraceClientFromLog("trace_log.bin");
             client.addHandListener(this);
             client.addDepthListener(this);
             client.start();
@@ -40,6 +53,7 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
         viewer = new HandViewer(client);
         viewer.setLocation(getLocation().x, getLocation().y + getHeight());
         viewer.setVisible(true);
+        viewer.setMeasurement(measurement);
     }
 
     public void handMoved(double x, double y, double z) {
@@ -56,6 +70,18 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
             doMeasurement();
             _do_measurement = false;
         }
+        if(_do_stage1){
+            doStage1Calibration();
+            _do_stage1 = false;
+        }
+        if(_do_stage2 > 0){
+            doStage2Calibration();
+            _do_stage2--;
+        }
+        if(calib_viewer != null && calib_viewer.isVisible()){
+            calib_viewer.getView().newDepthMap(dm, width, height);
+            calib_viewer.getView().repaint();
+        }
     }
 
     public void newCalibration(double tx, double ty, double bx, double by, double z) { }
@@ -71,6 +97,7 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
 
         bCalibrate = new javax.swing.JButton();
         lText = new javax.swing.JLabel();
+        bCalibDepth = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -83,19 +110,33 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
 
         lText.setText(" ");
 
+        bCalibDepth.setText("Calibrate Depth");
+        bCalibDepth.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                bCalibDepthActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(bCalibrate, javax.swing.GroupLayout.PREFERRED_SIZE, 725, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addComponent(lText, javax.swing.GroupLayout.DEFAULT_SIZE, 725, Short.MAX_VALUE)
+            .addComponent(lText, javax.swing.GroupLayout.DEFAULT_SIZE, 735, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(bCalibDepth, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 725, Short.MAX_VALUE)
+                    .addComponent(bCalibrate, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 725, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+            .addGroup(layout.createSequentialGroup()
                 .addComponent(lText)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(bCalibrate, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(bCalibrate, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(bCalibDepth, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(19, 19, 19))
         );
 
         pack();
@@ -113,10 +154,29 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
         }).start();
     }//GEN-LAST:event_bCalibrateActionPerformed
 
+    boolean _do_stage1 = false;
+    int _do_stage2 = 0;
+    final int NUM_STAGE2_CALIBS = 50;
+    double[] stage2_scales = new double[NUM_STAGE2_CALIBS];
+    private void bCalibDepthActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_bCalibDepthActionPerformed
+        lText.setText("First depth calibration slated to take place in 3 seconds, hold an index card ~2ft from sensor.");
+        (new Thread(){
+            public void run(){
+                try{ Thread.sleep(5000); }catch(Exception e){}
+                _do_stage1 = true;
+                lText.setText("First calibration done, second slated to take place in 3 seconds. Move index card roughly 2ft backwards, keep center near dot.");
+                try{ Thread.sleep(2000); }catch(Exception e){}
+                calib_viewer.getView().clearLines();
+                try{ Thread.sleep(3000); }catch(Exception e){}
+                _do_stage2 = NUM_STAGE2_CALIBS;
+            }
+        }).start();
+    }//GEN-LAST:event_bCalibDepthActionPerformed
+
     private void doMeasurement(){
         MeasurementViewer mviewer = new MeasurementViewer(this, depth_map, dm_width, dm_height);
         mviewer.setVisible(true);
-        HandMeasurement measurement = new HandMeasurement();
+        measurement = new HandMeasurement();
         measurement.measure(depth_map, dm_width, dm_height, (int)hx, (int)hy, (int)hz);
         if(!measurement.handMeasured()){
             lText.setText("Error measuring hand, see console.");
@@ -126,6 +186,42 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
             mviewer2.getView().newDepthMap(depth_map, dm_width, dm_height);
             mviewer2.setVisible(true);
             lText.setText("Hand successfully measured.");
+            try{
+                ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("measurement.obj"));
+                oos.writeObject(measurement);
+                oos.close();
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    MeasurementViewer calib_viewer;
+    private void doStage1Calibration(){
+        calib_viewer = new MeasurementViewer(this, depth_map, dm_width, dm_height);
+        calib_viewer.setVisible(true);
+        PerspectiveScaler.calibrateStage1(depth_map, dm_width, dm_height, calib_viewer);
+    }
+
+    private void doStage2Calibration(){
+        if(_do_stage2 > 0 && _do_stage2 < NUM_STAGE2_CALIBS){
+            stage2_scales[NUM_STAGE2_CALIBS - _do_stage2] = PerspectiveScaler.calibrateStage2(depth_map);
+            if(_do_stage2 == 1){
+                double avg = 0.;
+                int count = 0;
+                for(int x = 0; x < NUM_STAGE2_CALIBS; x++){
+                    if(stage2_scales[x] != -1){
+                        avg += stage2_scales[x];
+                        count++;
+                    }
+                }
+                if(count < 10){
+                    System.out.println("Bad calibration.. try again.");
+                }else{
+                    System.out.println("Got a scale of " + (avg / count));
+                    PerspectiveScaler.forceScaleFactor((avg / count));
+                }
+            }
         }
     }
 
@@ -145,6 +241,7 @@ public class Tracer extends javax.swing.JFrame implements HandMovementListener, 
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton bCalibDepth;
     private javax.swing.JButton bCalibrate;
     private javax.swing.JLabel lText;
     // End of variables declaration//GEN-END:variables
